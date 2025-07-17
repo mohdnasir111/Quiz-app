@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom animations */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        .option:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s ease-in-out;
+        }
+        .bg-gradient {
+            background: linear-gradient(135deg, #6ee7b7, #3b82f6);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="quiz-container" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 id="quiz-title" class="text-3xl font-bold text-center mb-6 animate-fade-in">Quiz App</h1>
+        
+        <!-- Quiz Section -->
+        <div id="quiz-section">
+            <div id="question-container" class="mb-6 animate-slide-in">
+                <h2 id="question" class="text-xl font-semibold text-gray-800"></h2>
+            </div>
+            <div id="options" class="space-y-4"></div>
+            <div id="feedback" class="text-center mt-4 text-lg font-medium"></div>
+            <div id="score" class="text-center mt-4 text-lg font-semibold"></div>
+            <button id="next-btn" class="mt-6 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition duration-300 hidden">Next Question</button>
+            <button id="restart-btn" class="mt-6 w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition duration-300 hidden">Restart Quiz</button>
+            <button id="add-question-btn" class="mt-4 w-full bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 transition duration-300">Add New Question</button>
+        </div>
+
+        <!-- Add Question Form -->
+        <div id="add-question-section" class="hidden">
+            <h2 class="text-2xl font-semibold text-center mb-4">Add a New Question</h2>
+            <div class="space-y-4">
+                <input id="new-question" type="text" placeholder="Enter question" class="w-full p-2 border rounded-lg">
+                <input id="option1" type="text" placeholder="Option 1" class="w-full p-2 border rounded-lg">
+                <input id="option2" type="text" placeholder="Option 2" class="w-full p-2 border rounded-lg">
+                <input id="option3" type="text" placeholder="Option 3" class="w-full p-2 border rounded-lg">
+                <input id="option4" type="text" placeholder="Option 4" class="w-full p-2 border rounded-lg">
+                <input id="correct-answer" type="text" placeholder="Correct Answer" class="w-full p-2 border rounded-lg">
+                <button id="submit-question-btn" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition duration-300">Submit Question</button>
+                <button id="back-to-quiz-btn" class="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition duration-300">Back to Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="correct-sound" src="https://cdn.pixabay.com/audio/2023/12/13/11-13-31-662_1.mp3"></audio>
+
+    <script>
+        let quizData = JSON.parse(localStorage.getItem('quizData')) || [
+            {
+                question: "What is the capital of France?",
+                options: ["Paris", "London", "Berlin", "Madrid"],
+                answer: "Paris"
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                options: ["Jupiter", "Mars", "Venus", "Mercury"],
+                answer: "Mars"
+            },
+            {
+                question: "What is 2 + 2?",
+                options: ["3", "4", "5", "6"],
+                answer: "4"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        const questionElement = document.getElementById('question');
+        const optionsElement = document.getElementById('options');
+        const feedbackElement = document.getElementById('feedback');
+        const scoreElement = document.getElementById('score');
+        const nextButton = document.getElementById('next-btn');
+        const restartButton = document.getElementById('restart-btn');
+        const addQuestionButton = document.getElementById('add-question-btn');
+        const quizContainer = document.getElementById('quiz-container');
+        const quizSection = document.getElementById('quiz-section');
+        const addQuestionSection = document.getElementById('add-question-section');
+        const submitQuestionButton = document.getElementById('submit-question-btn');
+        const backToQuizButton = document.getElementById('back-to-quiz-btn');
+        const correctSound = document.getElementById('correct-sound');
+
+        function loadQuestion() {
+            const currentQuestion = quizData[currentQuestionIndex];
+            questionElement.textContent = currentQuestion.question;
+            optionsElement.innerHTML = '';
+            feedbackElement.textContent = '';
+            nextButton.classList.add('hidden');
+
+            currentQuestion.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('w-full', 'bg-gray-200', 'py-2', 'rounded-lg', 'text-gray-800', 'hover:bg-blue-100', 'transition', 'duration-300', 'option', 'animate-slide-in');
+                button.style.animationDelay = `${currentQuestion.options.indexOf(option) * 0.1}s`;
+                button.addEventListener('click', () => selectOption(option));
+                optionsElement.appendChild(button);
+            });
+
+            scoreElement.textContent = `Score: ${score} / ${quizData.length}`;
+        }
+
+        function selectOption(selected) {
+            const currentQuestion = quizData[currentQuestionIndex];
+            const buttons = optionsElement.querySelectorAll('button');
+            buttons.forEach(button => button.disabled = true);
+
+            if (selected === currentQuestion.answer) {
+                feedbackElement.textContent = "Correct!";
+                feedbackElement.classList.add('text-green-500', 'animate-fade-in');
+                score++;
+                correctSound.play().catch(error => console.log("Audio play failed:", error));
+            } else {
+                feedbackElement.textContent = `Incorrect! The correct answer is ${currentQuestion.answer}.`;
+                feedbackElement.classList.add('text-red-500', 'animate-fade-in');
+            }
+
+            scoreElement.textContent = `Score: ${score} / ${quizData.length}`;
+            nextButton.classList.remove('hidden');
+
+            if (currentQuestionIndex === quizData.length - 1) {
+                nextButton.classList.add('hidden');
+                restartButton.classList.remove('hidden');
+                feedbackElement.textContent += ` Quiz completed! Final Score: ${score} / ${quizData.length}`;
+                quizContainer.classList.add('bg-gradient', 'text-white');
+            }
+        }
+
+        function showAddQuestionForm() {
+            quizSection.classList.add('hidden');
+            addQuestionSection.classList.remove('hidden');
+            quizContainer.classList.remove('bg-gradient', 'text-white');
+        }
+
+        function showQuiz() {
+            addQuestionSection.classList.add('hidden');
+            quizSection.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function addNewQuestion() {
+            const question = document.getElementById('new-question').value;
+            const option1 = document.getElementById('option1').value;
+            const option2 = document.getElementById('option2').value;
+            const option3 = document.getElementById('option3').value;
+            const option4 = document.getElementById('option4').value;
+            const correctAnswer = document.getElementById('correct-answer').value;
+
+            if (question && option1 && option2 && option3 && option4 && correctAnswer) {
+                if (![option1, option2, option3, option4].includes(correctAnswer)) {
+                    alert("Correct answer must match one of the options!");
+                    return;
+                }
+                const newQuestion = {
+                    question,
+                    options: [option1, option2, option3, option4],
+                    answer: correctAnswer
+                };
+                quizData.push(newQuestion);
+                localStorage.setItem('quizData', JSON.stringify(quizData));
+                document.getElementById('new-question').value = '';
+                document.getElementById('option1').value = '';
+                document.getElementById('option2').value = '';
+                document.getElementById('option3').value = '';
+                document.getElementById('option4').value = '';
+                document.getElementById('correct-answer').value = '';
+                showQuiz();
+            } else {
+                alert("Please fill in all fields!");
+            }
+        }
+
+        nextButton.addEventListener('click', () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                loadQuestion();
+            }
+        });
+
+        restartButton.addEventListener('click', () => {
+            currentQuestionIndex = 0;
+            score = 0;
+            quizContainer.classList.remove('bg-gradient', 'text-white');
+            restartButton.classList.add('hidden');
+            loadQuestion();
+        });
+
+        addQuestionButton.addEventListener('click', showAddQuestionForm);
+        submitQuestionButton.addEventListener('click', addNewQuestion);
+        backToQuizButton.addEventListener('click', showQuiz);
+
+        loadQuestion();
+    </script>
+</body>
+</html>
